@@ -45,7 +45,7 @@ func main() {
 
 	r := gin.Default()
 
-	handler.SetupRoutes(r, staffHandler)
+	handler.SetupRoutes(r, staffHandler, jwtService)
 
 	port := config.Get().Port
 	log.Printf("Server starting on port %s", port)
