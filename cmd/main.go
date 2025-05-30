@@ -6,9 +6,12 @@ import (
 	"log"
 	"opsalert/config"
 	"opsalert/internal/handler"
+	lineOAHandler "opsalert/internal/handler/line_oa"
 	staffHandler "opsalert/internal/handler/staff"
 	jwtService "opsalert/internal/jwt"
+	lineOARepo "opsalert/internal/repository/line_oa"
 	staffRepo "opsalert/internal/repository/staff"
+	lineOAService "opsalert/internal/service/line_oa"
 	staffService "opsalert/internal/service/staff"
 
 	"github.com/gin-gonic/gin"
@@ -35,17 +38,20 @@ func main() {
 	defer db.Close()
 
 	staffRepo := staffRepo.NewRepository(db)
+	lineOARepo := lineOARepo.NewRepository(db)
 
 	jwtSettings := jwtService.DefaultSettings()
 	jwtService := jwtService.NewService(jwtSettings)
 
 	staffService := staffService.NewService(staffRepo, jwtService)
+	lineOAService := lineOAService.NewService(lineOARepo)
 
 	staffHandler := staffHandler.NewHandler(staffService)
+	lineOAHandler := lineOAHandler.NewHandler(lineOAService)
 
 	r := gin.Default()
 
-	handler.SetupRoutes(r, staffHandler, jwtService)
+	handler.SetupRoutes(r, staffHandler, lineOAHandler, jwtService)
 
 	port := config.Get().Port
 	log.Printf("Server starting on port %s", port)
