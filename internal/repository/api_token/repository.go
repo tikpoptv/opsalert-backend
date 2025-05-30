@@ -3,6 +3,7 @@ package api_token
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"opsalert/internal/model/api_token"
@@ -13,6 +14,8 @@ type Repository interface {
 	GetByToken(ctx context.Context, token string) (*api_token.APIToken, error)
 	UpdateLastUsed(ctx context.Context, id int) error
 	CheckStaffOAPermission(ctx context.Context, staffID, oaID int) (bool, error)
+	GetByID(ctx context.Context, id int) (*api_token.APIToken, error)
+	Update(ctx context.Context, token *api_token.APIToken) error
 }
 
 type repository struct {
@@ -25,7 +28,7 @@ func NewRepository(db *sql.DB) Repository {
 
 func (r *repository) Create(ctx context.Context, token *api_token.APIToken) error {
 	query := `
-		INSERT INTO api_tokens (user_id, oa_id, token, name, created_at, last_used_at)
+		INSERT INTO api_tokens (user_id, token, name, is_active, created_at, last_used_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id`
 
@@ -33,9 +36,9 @@ func (r *repository) Create(ctx context.Context, token *api_token.APIToken) erro
 		ctx,
 		query,
 		token.UserID,
-		token.OAID,
 		token.Token,
 		token.Name,
+		token.IsActive,
 		time.Now(),
 		time.Now(),
 	).Scan(&token.ID)
@@ -43,7 +46,7 @@ func (r *repository) Create(ctx context.Context, token *api_token.APIToken) erro
 
 func (r *repository) GetByToken(ctx context.Context, token string) (*api_token.APIToken, error) {
 	query := `
-		SELECT id, user_id, oa_id, token, name, created_at, last_used_at
+		SELECT id, user_id, token, name, is_active, created_at, last_used_at
 		FROM api_tokens
 		WHERE token = $1`
 
@@ -51,9 +54,9 @@ func (r *repository) GetByToken(ctx context.Context, token string) (*api_token.A
 	err := r.db.QueryRowContext(ctx, query, token).Scan(
 		&t.ID,
 		&t.UserID,
-		&t.OAID,
 		&t.Token,
 		&t.Name,
+		&t.IsActive,
 		&t.CreatedAt,
 		&t.LastUsedAt,
 	)
@@ -83,4 +86,53 @@ func (r *repository) CheckStaffOAPermission(ctx context.Context, staffID, oaID i
 	var exists bool
 	err := r.db.QueryRowContext(ctx, query, staffID, oaID).Scan(&exists)
 	return exists, err
+}
+
+func (r *repository) GetByID(ctx context.Context, id int) (*api_token.APIToken, error) {
+	query := `
+		SELECT id, user_id, token, name, is_active, created_at, last_used_at
+		FROM api_tokens
+		WHERE id = $1`
+
+	var token api_token.APIToken
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&token.ID,
+		&token.UserID,
+		&token.Token,
+		&token.Name,
+		&token.IsActive,
+		&token.CreatedAt,
+		&token.LastUsedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get token: %w", err)
+	}
+
+	return &token, nil
+}
+
+func (r *repository) Update(ctx context.Context, token *api_token.APIToken) error {
+	query := `
+		UPDATE api_tokens
+		SET token = $1, last_used_at = $2, is_active = $3
+		WHERE id = $4`
+
+	result, err := r.db.ExecContext(ctx, query, token.Token, token.LastUsedAt, token.IsActive, token.ID)
+	if err != nil {
+		return fmt.Errorf("failed to update token: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("token not found")
+	}
+
+	return nil
 }

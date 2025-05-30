@@ -25,7 +25,7 @@ func NewService(repo apiTokenRepo.Repository) *Service {
 	}
 }
 
-func (s *Service) Create(ctx context.Context, userID int, oaID int, name string) (*apiTokenModel.APIToken, error) {
+func (s *Service) Create(ctx context.Context, userID int, name string) (*apiTokenModel.APIToken, error) {
 	// Generate random token
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
@@ -35,9 +35,9 @@ func (s *Service) Create(ctx context.Context, userID int, oaID int, name string)
 
 	apiToken := &apiTokenModel.APIToken{
 		UserID:    userID,
-		OAID:      oaID,
 		Token:     token,
 		Name:      name,
+		IsActive:  true,
 		CreatedAt: time.Now(),
 	}
 
@@ -58,4 +58,54 @@ func (s *Service) UpdateLastUsed(ctx context.Context, id int) error {
 
 func (s *Service) CheckStaffOAPermission(ctx context.Context, staffID, oaID int) (bool, error) {
 	return s.repo.CheckStaffOAPermission(ctx, staffID, oaID)
+}
+
+func (s *Service) ResetToken(ctx context.Context, tokenID int, userID int, role string) (*apiTokenModel.APIToken, error) {
+	// ตรวจสอบว่า token นี้เป็นของ user นี้หรือไม่
+	token, err := s.repo.GetByID(ctx, tokenID)
+	if err != nil {
+		return nil, err
+	}
+
+	// ถ้าไม่ใช่ admin ต้องเป็นเจ้าของ token
+	if role != "admin" && token.UserID != userID {
+		return nil, ErrUnauthorized
+	}
+
+	// สร้าง token ใหม่
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		return nil, err
+	}
+	newToken := hex.EncodeToString(tokenBytes)
+
+	// อัพเดท token ในฐานข้อมูล
+	token.Token = newToken
+	token.LastUsedAt = time.Now()
+	if err := s.repo.Update(ctx, token); err != nil {
+		return nil, err
+	}
+
+	return token, nil
+}
+
+func (s *Service) UpdateStatus(ctx context.Context, tokenID int, userID int, role string, isActive bool) (*apiTokenModel.APIToken, error) {
+	// ตรวจสอบว่า token นี้เป็นของ user นี้หรือไม่
+	token, err := s.repo.GetByID(ctx, tokenID)
+	if err != nil {
+		return nil, err
+	}
+
+	// ถ้าไม่ใช่ admin ต้องเป็นเจ้าของ token
+	if role != "admin" && token.UserID != userID {
+		return nil, ErrUnauthorized
+	}
+
+	// อัพเดทสถานะ token
+	token.IsActive = isActive
+	if err := s.repo.Update(ctx, token); err != nil {
+		return nil, err
+	}
+
+	return token, nil
 }

@@ -58,6 +58,8 @@ func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, lineOAHandle
 		apiTokens.Use(middleware.AuthMiddleware(jwtService))
 		{
 			apiTokens.POST("", apiTokenHandler.Create)
+			apiTokens.POST("/:id/reset", apiTokenHandler.Reset)
+			apiTokens.PUT("/:id/status", apiTokenHandler.UpdateStatus)
 		}
 
 		v1.GET("/ping", func(c *gin.Context) {
