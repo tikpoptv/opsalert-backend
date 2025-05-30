@@ -28,6 +28,7 @@ type Repository interface {
 	GetAll() ([]staffModel.Staff, error)
 	Update(id uint, staff *staffModel.Staff) error
 	SetPermissions(ctx context.Context, staffID int, permissions []staffModel.OAPermission) error
+	GetStaffPermissions(ctx context.Context, staffID int) ([]staffModel.StaffPermissionResponse, error)
 }
 
 func NewService(repo Repository, jwtService *jwt.Service) *Service {
@@ -118,4 +119,17 @@ func (s *Service) SetPermissions(ctx context.Context, req *staffModel.Permission
 	}
 
 	return s.repo.SetPermissions(ctx, req.StaffID, req.Permissions)
+}
+
+func (s *Service) GetStaffPermissions(ctx context.Context, staffID int) ([]staffModel.StaffPermissionResponse, error) {
+	// ตรวจสอบว่ามี staff อยู่จริง
+	staff, err := s.repo.GetByID(uint(staffID))
+	if err != nil {
+		return nil, err
+	}
+	if staff == nil {
+		return nil, fmt.Errorf("staff not found")
+	}
+
+	return s.repo.GetStaffPermissions(ctx, staffID)
 }

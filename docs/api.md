@@ -203,6 +203,43 @@ Authorization: Bearer <token>
 }
 ```
 
+#### Get Staff Permissions
+```
+GET /staff/permissions/:staff_id
+```
+ดูรายการ OA ที่ staff มีสิทธิ์เข้าถึง
+
+**Headers**
+```
+Authorization: Bearer <token>
+```
+
+**Response**
+```json
+{
+    "data": [
+        {
+            "oa_id": "integer",
+            "oa_name": "string",
+            "permission_level": "string" // "view" หรือ "manage"
+        }
+    ]
+}
+```
+
+**Error Responses**
+```json
+{
+    "error": "staff not found"
+}
+```
+หรือ
+```json
+{
+    "error": "insufficient permissions"
+}
+```
+
 ### LINE Official Account Management
 
 #### Create OA (Admin Only)

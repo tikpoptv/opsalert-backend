@@ -196,3 +196,33 @@ func (r *Repository) SetPermissions(ctx context.Context, staffID int, permission
 
 	return nil
 }
+
+func (r *Repository) GetStaffPermissions(ctx context.Context, staffID int) ([]staffModel.StaffPermissionResponse, error) {
+	query := `
+		SELECT p.oa_id, oa.name, p.permission_level
+		FROM staff_oa_permissions p
+		JOIN line_official_accounts oa ON p.oa_id = oa.id
+		WHERE p.staff_id = $1
+		ORDER BY oa.name`
+
+	rows, err := r.db.QueryContext(ctx, query, staffID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get staff permissions: %w", err)
+	}
+	defer rows.Close()
+
+	var permissions []staffModel.StaffPermissionResponse
+	for rows.Next() {
+		var p staffModel.StaffPermissionResponse
+		if err := rows.Scan(&p.OAID, &p.OAName, &p.PermissionLevel); err != nil {
+			return nil, fmt.Errorf("failed to scan permission: %w", err)
+		}
+		permissions = append(permissions, p)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating permissions: %w", err)
+	}
+
+	return permissions, nil
+}

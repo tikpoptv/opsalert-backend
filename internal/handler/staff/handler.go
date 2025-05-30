@@ -170,3 +170,25 @@ func (h *Handler) SetPermissions(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "staff permissions updated successfully"})
 }
+
+func (h *Handler) GetStaffPermissions(c *gin.Context) {
+	staffIDStr := c.Param("staff_id")
+	staffID, err := strconv.Atoi(staffIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid staff id"})
+		return
+	}
+
+	permissions, err := h.service.GetStaffPermissions(c.Request.Context(), staffID)
+	if err != nil {
+		switch err.Error() {
+		case "staff not found":
+			c.JSON(http.StatusNotFound, gin.H{"error": "staff not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": permissions})
+}
