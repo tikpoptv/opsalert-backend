@@ -1,7 +1,9 @@
 package staff
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"opsalert/internal/jwt"
 	staffModel "opsalert/internal/model/staff"
 
@@ -25,6 +27,7 @@ type Repository interface {
 	GetByID(id uint) (*staffModel.Staff, error)
 	GetAll() ([]staffModel.Staff, error)
 	Update(id uint, staff *staffModel.Staff) error
+	SetPermissions(ctx context.Context, staffID int, permissions []staffModel.OAPermission) error
 }
 
 func NewService(repo Repository, jwtService *jwt.Service) *Service {
@@ -97,4 +100,22 @@ func (s *Service) UpdateStaff(id uint, req *staffModel.UpdateStaffRequest) error
 	staff.IsActive = req.IsActive
 
 	return s.repo.Update(id, staff)
+}
+
+func (s *Service) SetPermissions(ctx context.Context, req *staffModel.PermissionRequest) error {
+	// ตรวจสอบว่ามี staff อยู่จริง
+	staff, err := s.repo.GetByID(uint(req.StaffID))
+	if err != nil {
+		return err
+	}
+	if staff == nil {
+		return fmt.Errorf("staff not found")
+	}
+
+	// ตรวจสอบว่าไม่ใช่ admin (admin มีสิทธิ์ทั้งหมดอยู่แล้ว)
+	if staff.Role == "admin" {
+		return fmt.Errorf("cannot set permissions for admin")
+	}
+
+	return s.repo.SetPermissions(ctx, req.StaffID, req.Permissions)
 }

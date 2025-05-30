@@ -172,6 +172,37 @@ Authorization: Bearer <token>
 }
 ```
 
+#### Set Staff Permissions (Admin Only)
+```
+POST /staff/permissions
+```
+กำหนดสิทธิ์การเข้าถึง OA ให้กับ staff
+
+**Headers**
+```
+Authorization: Bearer <token>
+```
+
+**Request Body**
+```json
+{
+    "staff_id": "integer",
+    "permissions": [
+        {
+            "oa_id": "integer",
+            "permission_level": "string" // "view" หรือ "manage"
+        }
+    ]
+}
+```
+
+**Response**
+```json
+{
+    "message": "staff permissions updated successfully"
+}
+```
+
 ### LINE Official Account Management
 
 #### Create OA (Admin Only)
@@ -202,11 +233,13 @@ Authorization: Bearer <token>
 }
 ```
 
-#### Update OA (Admin Only)
+#### Update OA (Admin or Staff with Manage Permission)
 ```
 PUT /oa/:id
 ```
 อัพเดทข้อมูล LINE Official Account
+- Admin สามารถแก้ไขได้ทุก OA
+- Staff ต้องมีสิทธิ์ manage ถึงจะแก้ไขได้
 
 **Headers**
 ```
@@ -227,6 +260,19 @@ Authorization: Bearer <token>
 ```json
 {
     "message": "line official account updated successfully"
+}
+```
+
+**Error Responses**
+```json
+{
+    "error": "insufficient permissions to update this OA"
+}
+```
+หรือ
+```json
+{
+    "error": "line official account not found"
 }
 ```
 
@@ -252,7 +298,7 @@ Authorization: Bearer <token>
 ```
 GET /oa
 ```
-ดูรายการ LINE Official Account ทั้งหมด
+ดูรายการ LINE Official Account
 
 **Headers**
 ```
@@ -275,6 +321,10 @@ Authorization: Bearer <token>
     ]
 }
 ```
+
+**Note:**
+- ถ้าเป็น admin จะเห็น OA ทั้งหมด
+- ถ้าเป็น staff จะเห็นเฉพาะ OA ที่ได้รับสิทธิ์เข้าถึงเท่านั้น
 
 ## Error Responses
 

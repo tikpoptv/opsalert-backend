@@ -1,7 +1,9 @@
 package staff
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	staffModel "opsalert/internal/model/staff"
 )
 
@@ -138,6 +140,58 @@ func (r *Repository) Update(id uint, staff *staffModel.Staff) error {
 
 	if rowsAffected == 0 {
 		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+func (r *Repository) SetPermissions(ctx context.Context, staffID int, permissions []staffModel.OAPermission) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// ตรวจสอบว่า staff มีอยู่จริง
+	var exists bool
+	err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM staff_accounts WHERE id = $1)", staffID).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check staff existence: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("staff not found")
+	}
+
+	// ตรวจสอบว่า OA ทั้งหมดมีอยู่จริง
+	for _, p := range permissions {
+		err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM line_official_accounts WHERE id = $1)", p.OAID).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("failed to check OA existence: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("OA with ID %d not found", p.OAID)
+		}
+	}
+
+	// ลบสิทธิ์เดิมทั้งหมด
+	_, err = tx.ExecContext(ctx, "DELETE FROM staff_oa_permissions WHERE staff_id = $1", staffID)
+	if err != nil {
+		return fmt.Errorf("failed to delete existing permissions: %w", err)
+	}
+
+	// เพิ่มสิทธิ์ใหม่
+	for _, p := range permissions {
+		_, err = tx.ExecContext(ctx,
+			"INSERT INTO staff_oa_permissions (staff_id, oa_id, permission_level) VALUES ($1, $2, $3)",
+			staffID, p.OAID, p.PermissionLevel,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert permission for OA %d: %w", p.OAID, err)
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil

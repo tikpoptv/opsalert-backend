@@ -30,13 +30,14 @@ func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, lineOAHandle
 			staff.GET("/accounts/:id", middleware.AdminOnly(), staffHandler.GetAccountByID)
 			staff.PUT("/accounts/:id", middleware.AdminOnly(), staffHandler.UpdateStaff)
 			staff.POST("/register", middleware.AdminOnly(), staffHandler.Register)
+			staff.POST("/permissions", middleware.AdminOnly(), staffHandler.SetPermissions)
 		}
 
 		oa := v1.Group("/oa")
 		{
 			oa.Use(middleware.AuthMiddleware(jwtService))
 			oa.POST("", middleware.AdminOnly(), lineOAHandler.Create)
-			oa.PUT("/:id", middleware.AdminOnly(), lineOAHandler.Update)
+			oa.PUT("/:id", middleware.StaffOnly(), lineOAHandler.Update)
 			oa.DELETE("/:id", middleware.AdminOnly(), lineOAHandler.Delete)
 			oa.GET("", lineOAHandler.List)
 		}
