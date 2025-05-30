@@ -15,20 +15,22 @@ var (
 )
 
 type Service struct {
-	repo Repository
-	jwt  *jwt.Service
+	repo       Repository
+	jwtService *jwt.Service
 }
 
 type Repository interface {
 	Create(staff *staffModel.Staff) error
 	GetByUsername(username string) (*staffModel.Staff, error)
 	GetByID(id uint) (*staffModel.Staff, error)
+	GetAll() ([]staffModel.Staff, error)
+	Update(id uint, staff *staffModel.Staff) error
 }
 
 func NewService(repo Repository, jwtService *jwt.Service) *Service {
 	return &Service{
-		repo: repo,
-		jwt:  jwtService,
+		repo:       repo,
+		jwtService: jwtService,
 	}
 }
 
@@ -64,7 +66,7 @@ func (s *Service) Login(req *staffModel.LoginRequest) (string, *staffModel.Staff
 		return "", nil, ErrInvalidCredentials
 	}
 
-	token, err := s.jwt.GenerateToken(staff.ID, staff.Username, staff.Role)
+	token, err := s.jwtService.GenerateToken(staff.ID, staff.Username, staff.Role)
 	if err != nil {
 		return "", nil, err
 	}
@@ -78,4 +80,21 @@ func (s *Service) GetProfile(userID uint) (*staffModel.Staff, error) {
 		return nil, ErrUserNotFound
 	}
 	return staff, nil
+}
+
+func (s *Service) GetAccounts() ([]staffModel.Staff, error) {
+	return s.repo.GetAll()
+}
+
+func (s *Service) UpdateStaff(id uint, req *staffModel.UpdateStaffRequest) error {
+	staff, err := s.repo.GetByID(id)
+	if err != nil {
+		return ErrUserNotFound
+	}
+
+	staff.FullName = req.FullName
+	staff.Role = req.Role
+	staff.IsActive = req.IsActive
+
+	return s.repo.Update(id, staff)
 }
