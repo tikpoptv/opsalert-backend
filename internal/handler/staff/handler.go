@@ -23,28 +23,83 @@ func NewHandler(service *staffService.Service) *Handler {
 func (h *Handler) Register(c *gin.Context) {
 	var req staffModel.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "invalid request data",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Validate required fields
+	if req.Username == "" || req.Password == "" || req.FullName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "username, password and full_name are required",
+		})
+		return
+	}
+
+	// Validate password strength
+	if len(req.Password) < 8 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "password must be at least 8 characters long",
+		})
 		return
 	}
 
 	if err := h.service.Register(&req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if strings.Contains(err.Error(), "duplicate key") {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "username already exists",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "failed to register staff",
+			"details": err.Error(),
+		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "staff registered successfully"})
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "staff registered successfully",
+	})
 }
 
 func (h *Handler) Login(c *gin.Context) {
 	var req staffModel.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "invalid request data",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Validate required fields
+	if req.Username == "" || req.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "username and password are required",
+		})
 		return
 	}
 
 	token, staff, err := h.service.Login(&req)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case "invalid username or password":
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "invalid username or password",
+			})
+		case "account is inactive":
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "account is inactive",
+			})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "failed to login",
+				"details": err.Error(),
+			})
+		}
 		return
 	}
 
@@ -63,13 +118,25 @@ func (h *Handler) Login(c *gin.Context) {
 func (h *Handler) GetProfile(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
 		return
 	}
 
 	staff, err := h.service.GetProfile(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case "user not found":
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "user not found",
+			})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "failed to get profile",
+				"details": err.Error(),
+			})
+		}
 		return
 	}
 

@@ -427,6 +427,99 @@ Authorization: Bearer <token>
 - ถ้าเป็น admin จะเห็น OA ทั้งหมด
 - ถ้าเป็น staff จะเห็นเฉพาะ OA ที่ได้รับสิทธิ์เข้าถึงเท่านั้น
 
+### LINE User Management
+
+#### List LINE Users
+```
+GET /line-users?oa_id={oa_id}
+```
+ดูรายการผู้ใช้ที่เคยคุยกับ OA ที่ระบุ
+
+**Headers**
+```
+Authorization: Bearer <token>
+```
+
+**Query Parameters**
+- oa_id: ID ของ OA ที่ต้องการดูรายการผู้ใช้ (required)
+
+**Response**
+```json
+{
+    "data": [
+        {
+            "id": "integer",
+            "user_id": "string",
+            "oa_id": "integer",
+            "created_at": "datetime",
+            "updated_at": "datetime"
+        }
+    ]
+}
+```
+
+**Error Responses**
+```json
+{
+    "error": "oa_id is required"
+}
+```
+หรือ
+```json
+{
+    "error": "invalid oa_id"
+}
+```
+หรือ
+```json
+{
+    "error": "insufficient permissions to view this OA"
+}
+```
+
+#### Get LINE User by ID
+```
+GET /line-users/:id
+```
+ดูข้อมูลผู้ใช้ LINE คนเดียว
+
+**Headers**
+```
+Authorization: Bearer <token>
+```
+
+**Response**
+```json
+{
+    "data": {
+        "id": "integer",
+        "user_id": "string",
+        "oa_id": "integer",
+        "created_at": "datetime",
+        "updated_at": "datetime"
+    }
+}
+```
+
+**Error Responses**
+```json
+{
+    "error": "invalid id"
+}
+```
+หรือ
+```json
+{
+    "error": "line user not found"
+}
+```
+หรือ
+```json
+{
+    "error": "insufficient permissions to view this OA"
+}
+```
+
 ## Error Responses
 
 ### 400 Bad Request

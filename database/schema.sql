@@ -8,7 +8,8 @@ DROP TABLE IF EXISTS
   line_users,
   system_oa_permissions,
   external_systems,
-  line_official_accounts
+  line_official_accounts,
+  api_tokens
 CASCADE;
 
 DROP FUNCTION IF EXISTS log_audit() CASCADE;
@@ -88,10 +89,21 @@ CREATE TABLE staff_oa_permissions (
     CHECK (permission_level IN ('view', 'manage')) -- จำกัดสิทธิ์
 );
 
--- Log API Request จากระบบภายนอก
+-- API Token สำหรับ user
+CREATE TABLE api_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES staff_accounts(id) ON DELETE CASCADE,
+  token VARCHAR(100) UNIQUE NOT NULL,           -- token สำหรับยืนยัน API
+  name VARCHAR(100) NOT NULL,                   -- ชื่อ token (เช่น "Development", "Production")
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_used_at TIMESTAMP                        -- เก็บเวลาที่ใช้ token ล่าสุด
+);
+
+-- Log API Request จาก token
 CREATE TABLE api_logs (
   id SERIAL PRIMARY KEY,
-  system_id INTEGER REFERENCES external_systems(id),
+  token_id INTEGER REFERENCES api_tokens(id),
   endpoint TEXT,
   method VARCHAR(10)
     CHECK (method IN ('GET', 'POST', 'PUT', 'DELETE', 'PATCH')),
@@ -164,6 +176,10 @@ FOR EACH ROW EXECUTE FUNCTION log_audit();
 
 CREATE TRIGGER trg_audit_staff_oa_permissions
 AFTER INSERT OR UPDATE OR DELETE ON staff_oa_permissions
+FOR EACH ROW EXECUTE FUNCTION log_audit();
+
+CREATE TRIGGER trg_audit_api_tokens
+AFTER INSERT OR UPDATE OR DELETE ON api_tokens
 FOR EACH ROW EXECUTE FUNCTION log_audit();
 
 CREATE TRIGGER trg_audit_api_logs
