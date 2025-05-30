@@ -44,7 +44,7 @@ func main() {
 	jwtService := jwtService.NewService(jwtSettings)
 
 	staffService := staffService.NewService(staffRepo, jwtService)
-	lineOAService := lineOAService.NewService(lineOARepo)
+	lineOAService := lineOAService.NewService(lineOARepo, config.Get().Domain)
 
 	staffHandler := staffHandler.NewHandler(staffService)
 	lineOAHandler := lineOAHandler.NewHandler(lineOAService)

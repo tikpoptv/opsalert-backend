@@ -35,7 +35,10 @@ func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, lineOAHandle
 		oa := v1.Group("/oa")
 		{
 			oa.Use(middleware.AuthMiddleware(jwtService))
-			oa.POST("", middleware.AdminOnly(), lineOAHandler.CreateOA)
+			oa.POST("", middleware.AdminOnly(), lineOAHandler.Create)
+			oa.PUT("/:id", middleware.AdminOnly(), lineOAHandler.Update)
+			oa.DELETE("/:id", middleware.AdminOnly(), lineOAHandler.Delete)
+			oa.GET("", lineOAHandler.List)
 		}
 
 		v1.GET("/ping", func(c *gin.Context) {
