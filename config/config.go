@@ -1,50 +1,70 @@
 package config
 
 import (
-	"log"
+	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Port     string
-	Env      string
-	DBConfig DBConfig
-}
-
-type DBConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	DBName   string
+	Port               string
+	Env                string
+	DBHost             string
+	DBPort             string
+	DBUser             string
+	DBPassword         string
+	DBName             string
+	JWTSecret          string
+	JWTExpirationHours int
 }
 
 var AppConfig Config
 
-func LoadEnv() {
+func Get() *Config {
+	return &AppConfig
+}
+
+func LoadEnv() error {
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using system env")
+		return fmt.Errorf("error loading .env file: %v", err)
+	}
+
+	requiredEnvVars := []string{
+		"PORT",
+		"ENV",
+		"DB_HOST",
+		"DB_PORT",
+		"DB_USER",
+		"DB_PASSWORD",
+		"DB_NAME",
+		"JWT_SECRET",
+		"JWT_EXPIRATION_HOURS",
+	}
+
+	for _, envVar := range requiredEnvVars {
+		if os.Getenv(envVar) == "" {
+			return fmt.Errorf("required environment variable %s is not set", envVar)
+		}
+	}
+
+	expirationHours, err := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
+	if err != nil {
+		return fmt.Errorf("invalid JWT_EXPIRATION_HOURS value: %v", err)
 	}
 
 	AppConfig = Config{
-		Port: getEnv("PORT", "8080"),
-		Env:  getEnv("ENV", "development"),
-		DBConfig: DBConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", "postgres"),
-			DBName:   getEnv("DB_NAME", "opsalert"),
-		},
+		Port:               os.Getenv("PORT"),
+		Env:                os.Getenv("ENV"),
+		DBHost:             os.Getenv("DB_HOST"),
+		DBPort:             os.Getenv("DB_PORT"),
+		DBUser:             os.Getenv("DB_USER"),
+		DBPassword:         os.Getenv("DB_PASSWORD"),
+		DBName:             os.Getenv("DB_NAME"),
+		JWTSecret:          os.Getenv("JWT_SECRET"),
+		JWTExpirationHours: expirationHours,
 	}
-}
 
-func getEnv(key, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	return value
+	return nil
 }

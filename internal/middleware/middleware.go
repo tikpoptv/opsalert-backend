@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Logger middleware for logging requests
 func Logger() gin.HandlerFunc {
 	return gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
 		return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s\"\n",
@@ -24,7 +23,6 @@ func Logger() gin.HandlerFunc {
 	})
 }
 
-// Recovery middleware for handling panics
 func Recovery() gin.HandlerFunc {
 	return gin.Recovery()
 }
