@@ -1,6 +1,7 @@
 package line_oa
 
 import (
+	"fmt"
 	"net/http"
 	lineOAModel "opsalert/internal/model/line_oa"
 	lineOAService "opsalert/internal/service/line_oa"
@@ -39,18 +40,36 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
+	// ดึง user_id และ role จาก context
+	staffID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		return
+	}
+
+	role, exists := c.Get("role")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user role not found"})
+		return
+	}
+
 	var req lineOAModel.UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request data"})
 		return
 	}
 
-	if err := h.service.Update(c.Request.Context(), id, &req); err != nil {
-		if err.Error() == "line official account not found" {
+	// แปลง uint เป็น int
+	staffIDInt := int(staffID.(uint))
+	if err := h.service.Update(c.Request.Context(), id, staffIDInt, role.(string), &req); err != nil {
+		switch err.Error() {
+		case "line official account not found":
 			c.JSON(http.StatusNotFound, gin.H{"error": "line official account not found"})
-			return
+		case "insufficient permissions":
+			c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permissions to update this OA"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update line official account"})
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update line official account"})
 		return
 	}
 
@@ -77,10 +96,29 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	oas, err := h.service.List(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get line official accounts"})
+	// ดึง user_id และ role จาก context
+	staffID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
 		return
+	}
+
+	role, exists := c.Get("role")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user role not found"})
+		return
+	}
+
+	// แปลง uint เป็น int
+	staffIDInt := int(staffID.(uint))
+	oas, err := h.service.List(c.Request.Context(), staffIDInt, role.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to get line official accounts: %v", err)})
+		return
+	}
+
+	if oas == nil {
+		oas = make([]*lineOAModel.LineOA, 0)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": oas})

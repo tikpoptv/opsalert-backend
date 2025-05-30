@@ -5,6 +5,7 @@ import (
 	staffModel "opsalert/internal/model/staff"
 	staffService "opsalert/internal/service/staff"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -144,4 +145,28 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "staff updated successfully"})
+}
+
+func (h *Handler) SetPermissions(c *gin.Context) {
+	var req staffModel.PermissionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request data"})
+		return
+	}
+
+	if err := h.service.SetPermissions(c.Request.Context(), &req); err != nil {
+		switch {
+		case err.Error() == "staff not found":
+			c.JSON(http.StatusNotFound, gin.H{"error": "staff not found"})
+		case err.Error() == "cannot set permissions for admin":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot set permissions for admin"})
+		case strings.Contains(err.Error(), "OA with ID"):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "staff permissions updated successfully"})
 }
