@@ -19,12 +19,16 @@ func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, jwtService *
 	{
 		staff := v1.Group("/staff")
 		{
-			staff.POST("/register", staffHandler.Register)
+			// Public routes
 			staff.POST("/login", staffHandler.Login)
 
 			// Protected routes
 			staff.Use(middleware.AuthMiddleware(jwtService))
 			staff.GET("/me", staffHandler.GetProfile)
+			staff.GET("/accounts", middleware.AdminOnly(), staffHandler.GetAccounts)
+			staff.GET("/accounts/:id", middleware.AdminOnly(), staffHandler.GetAccountByID)
+			staff.PUT("/accounts/:id", middleware.AdminOnly(), staffHandler.UpdateStaff)
+			staff.POST("/register", middleware.AdminOnly(), staffHandler.Register)
 		}
 
 		v1.GET("/ping", func(c *gin.Context) {
