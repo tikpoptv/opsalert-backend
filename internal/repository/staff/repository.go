@@ -227,7 +227,7 @@ func (r *Repository) GetStaffPermissions(ctx context.Context, staffID int) ([]st
 	return permissions, nil
 }
 
-func (r *Repository) DeleteStaffPermissions(ctx context.Context, staffID int) error {
+func (r *Repository) DeleteStaffPermissions(ctx context.Context, staffID int, oaID int) error {
 	// ตรวจสอบว่า staff มีอยู่จริง
 	var exists bool
 	err := r.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM staff_accounts WHERE id = $1)", staffID).Scan(&exists)
@@ -238,10 +238,28 @@ func (r *Repository) DeleteStaffPermissions(ctx context.Context, staffID int) er
 		return fmt.Errorf("staff not found")
 	}
 
-	// ลบสิทธิ์ทั้งหมดของ staff
-	_, err = r.db.ExecContext(ctx, "DELETE FROM staff_oa_permissions WHERE staff_id = $1", staffID)
+	// ตรวจสอบว่า OA มีอยู่จริง
+	err = r.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM line_official_accounts WHERE id = $1)", oaID).Scan(&exists)
 	if err != nil {
-		return fmt.Errorf("failed to delete staff permissions: %w", err)
+		return fmt.Errorf("failed to check OA existence: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("OA not found")
+	}
+
+	// ลบสิทธิ์เฉพาะ OA ที่ระบุ
+	result, err := r.db.ExecContext(ctx, "DELETE FROM staff_oa_permissions WHERE staff_id = $1 AND oa_id = $2", staffID, oaID)
+	if err != nil {
+		return fmt.Errorf("failed to delete staff permission: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("staff does not have permission for this OA")
 	}
 
 	return nil

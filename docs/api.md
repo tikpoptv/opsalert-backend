@@ -240,21 +240,24 @@ Authorization: Bearer <token>
 }
 ```
 
-#### Delete Staff Permissions (Admin Only)
+#### Delete Staff Permission (Admin Only)
 ```
-DELETE /staff/permissions/:id
+DELETE /staff/permissions/:id?oa_id={oa_id}
 ```
-ลบสิทธิ์การเข้าถึง OA ทั้งหมดของ staff
+ลบสิทธิ์การเข้าถึง OA ที่ระบุของ staff
 
 **Headers**
 ```
 Authorization: Bearer <token>
 ```
 
+**Query Parameters**
+- oa_id: ID ของ OA ที่ต้องการลบสิทธิ์ (required)
+
 **Response**
 ```json
 {
-    "message": "staff permissions deleted successfully"
+    "message": "staff permission deleted successfully"
 }
 ```
 
@@ -267,13 +270,37 @@ Authorization: Bearer <token>
 หรือ
 ```json
 {
-    "error": "cannot delete permissions for admin"
+    "error": "oa_id is required"
+}
+```
+หรือ
+```json
+{
+    "error": "invalid oa_id"
 }
 ```
 หรือ
 ```json
 {
     "error": "staff not found"
+}
+```
+หรือ
+```json
+{
+    "error": "OA not found"
+}
+```
+หรือ
+```json
+{
+    "error": "staff does not have permission for this OA"
+}
+```
+หรือ
+```json
+{
+    "error": "cannot delete permissions for admin"
 }
 ```
 
