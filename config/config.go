@@ -18,6 +18,7 @@ type Config struct {
 	DBName             string
 	JWTSecret          string
 	JWTExpirationHours int
+	Domain             string
 }
 
 var AppConfig Config
@@ -41,6 +42,7 @@ func LoadEnv() error {
 		"DB_NAME",
 		"JWT_SECRET",
 		"JWT_EXPIRATION_HOURS",
+		"DOMAIN",
 	}
 
 	for _, envVar := range requiredEnvVars {
@@ -64,6 +66,7 @@ func LoadEnv() error {
 		DBName:             os.Getenv("DB_NAME"),
 		JWTSecret:          os.Getenv("JWT_SECRET"),
 		JWTExpirationHours: expirationHours,
+		Domain:             os.Getenv("DOMAIN"),
 	}
 
 	return nil

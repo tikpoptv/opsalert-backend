@@ -1,6 +1,7 @@
 package handler
 
 import (
+	lineOAHandler "opsalert/internal/handler/line_oa"
 	staffHandler "opsalert/internal/handler/staff"
 	jwtService "opsalert/internal/jwt"
 	"opsalert/internal/middleware"
@@ -8,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, jwtService *jwtService.Service) {
+func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, lineOAHandler *lineOAHandler.Handler, jwtService *jwtService.Service) {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "ok",
@@ -29,6 +30,15 @@ func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, jwtService *
 			staff.GET("/accounts/:id", middleware.AdminOnly(), staffHandler.GetAccountByID)
 			staff.PUT("/accounts/:id", middleware.AdminOnly(), staffHandler.UpdateStaff)
 			staff.POST("/register", middleware.AdminOnly(), staffHandler.Register)
+		}
+
+		oa := v1.Group("/oa")
+		{
+			oa.Use(middleware.AuthMiddleware(jwtService))
+			oa.POST("", middleware.AdminOnly(), lineOAHandler.Create)
+			oa.PUT("/:id", middleware.AdminOnly(), lineOAHandler.Update)
+			oa.DELETE("/:id", middleware.AdminOnly(), lineOAHandler.Delete)
+			oa.GET("", lineOAHandler.List)
 		}
 
 		v1.GET("/ping", func(c *gin.Context) {
