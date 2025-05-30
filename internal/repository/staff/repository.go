@@ -7,15 +7,27 @@ import (
 	staffModel "opsalert/internal/model/staff"
 )
 
-type Repository struct {
+type Repository interface {
+	Create(staff *staffModel.Staff) error
+	GetByUsername(username string) (*staffModel.Staff, error)
+	GetByID(id uint) (*staffModel.Staff, error)
+	GetAll() ([]staffModel.Staff, error)
+	Update(id uint, staff *staffModel.Staff) error
+	SetPermissions(ctx context.Context, staffID int, permissions []staffModel.OAPermission) error
+	GetStaffPermissions(ctx context.Context, staffID int) ([]staffModel.StaffPermissionResponse, error)
+	DeleteStaffPermissions(ctx context.Context, staffID int, oaID int) error
+	CheckPermission(ctx context.Context, staffID int, oaID int) (bool, error)
+}
+
+type repository struct {
 	db *sql.DB
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *sql.DB) Repository {
+	return &repository{db: db}
 }
 
-func (r *Repository) Create(staff *staffModel.Staff) error {
+func (r *repository) Create(staff *staffModel.Staff) error {
 	query := `
 		INSERT INTO staff_accounts (username, password_hash, full_name, role, is_active)
 		VALUES ($1, $2, $3, $4, $5)
@@ -31,7 +43,7 @@ func (r *Repository) Create(staff *staffModel.Staff) error {
 	).Scan(&staff.ID, &staff.CreatedAt)
 }
 
-func (r *Repository) GetByUsername(username string) (*staffModel.Staff, error) {
+func (r *repository) GetByUsername(username string) (*staffModel.Staff, error) {
 	query := `
 		SELECT id, username, password_hash, full_name, role, is_active, created_at
 		FROM staff_accounts
@@ -58,7 +70,7 @@ func (r *Repository) GetByUsername(username string) (*staffModel.Staff, error) {
 	return staff, nil
 }
 
-func (r *Repository) GetByID(id uint) (*staffModel.Staff, error) {
+func (r *repository) GetByID(id uint) (*staffModel.Staff, error) {
 	query := `
 		SELECT id, username, password_hash, full_name, role, is_active, created_at
 		FROM staff_accounts
@@ -85,7 +97,7 @@ func (r *Repository) GetByID(id uint) (*staffModel.Staff, error) {
 	return staff, nil
 }
 
-func (r *Repository) GetAll() ([]staffModel.Staff, error) {
+func (r *repository) GetAll() ([]staffModel.Staff, error) {
 	query := `
 		SELECT id, username, password_hash, full_name, role, is_active, created_at
 		FROM staff_accounts
@@ -122,7 +134,7 @@ func (r *Repository) GetAll() ([]staffModel.Staff, error) {
 	return staffs, nil
 }
 
-func (r *Repository) Update(id uint, staff *staffModel.Staff) error {
+func (r *repository) Update(id uint, staff *staffModel.Staff) error {
 	query := `
 		UPDATE staff_accounts
 		SET full_name = $1, role = $2, is_active = $3
@@ -145,7 +157,7 @@ func (r *Repository) Update(id uint, staff *staffModel.Staff) error {
 	return nil
 }
 
-func (r *Repository) SetPermissions(ctx context.Context, staffID int, permissions []staffModel.OAPermission) error {
+func (r *repository) SetPermissions(ctx context.Context, staffID int, permissions []staffModel.OAPermission) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -192,6 +204,90 @@ func (r *Repository) SetPermissions(ctx context.Context, staffID int, permission
 
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *repository) GetStaffPermissions(ctx context.Context, staffID int) ([]staffModel.StaffPermissionResponse, error) {
+	query := `
+		SELECT p.oa_id, oa.name, p.permission_level
+		FROM staff_oa_permissions p
+		JOIN line_official_accounts oa ON p.oa_id = oa.id
+		WHERE p.staff_id = $1
+		ORDER BY oa.name`
+
+	rows, err := r.db.QueryContext(ctx, query, staffID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get staff permissions: %w", err)
+	}
+	defer rows.Close()
+
+	var permissions []staffModel.StaffPermissionResponse
+	for rows.Next() {
+		var p staffModel.StaffPermissionResponse
+		if err := rows.Scan(&p.OAID, &p.OAName, &p.PermissionLevel); err != nil {
+			return nil, fmt.Errorf("failed to scan permission: %w", err)
+		}
+		permissions = append(permissions, p)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating permissions: %w", err)
+	}
+
+	return permissions, nil
+}
+
+func (r *repository) CheckPermission(ctx context.Context, staffID int, oaID int) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM staff_oa_permissions
+			WHERE staff_id = $1 AND oa_id = $2
+		)`
+
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, staffID, oaID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check permission: %w", err)
+	}
+
+	return exists, nil
+}
+
+func (r *repository) DeleteStaffPermissions(ctx context.Context, staffID int, oaID int) error {
+	// ตรวจสอบว่า staff มีอยู่จริง
+	var exists bool
+	err := r.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM staff_accounts WHERE id = $1)", staffID).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check staff existence: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("staff not found")
+	}
+
+	// ตรวจสอบว่า OA มีอยู่จริง
+	err = r.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM line_official_accounts WHERE id = $1)", oaID).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check OA existence: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("OA not found")
+	}
+
+	// ลบสิทธิ์เฉพาะ OA ที่ระบุ
+	result, err := r.db.ExecContext(ctx, "DELETE FROM staff_oa_permissions WHERE staff_id = $1 AND oa_id = $2", staffID, oaID)
+	if err != nil {
+		return fmt.Errorf("failed to delete staff permission: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("staff does not have permission for this OA")
 	}
 
 	return nil

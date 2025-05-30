@@ -203,6 +203,107 @@ Authorization: Bearer <token>
 }
 ```
 
+#### Get Staff Permissions
+```
+GET /staff/permissions/:staff_id
+```
+ดูรายการ OA ที่ staff มีสิทธิ์เข้าถึง
+
+**Headers**
+```
+Authorization: Bearer <token>
+```
+
+**Response**
+```json
+{
+    "data": [
+        {
+            "oa_id": "integer",
+            "oa_name": "string",
+            "permission_level": "string" // "view" หรือ "manage"
+        }
+    ]
+}
+```
+
+**Error Responses**
+```json
+{
+    "error": "staff not found"
+}
+```
+หรือ
+```json
+{
+    "error": "insufficient permissions"
+}
+```
+
+#### Delete Staff Permission (Admin Only)
+```
+DELETE /staff/permissions/:id?oa_id={oa_id}
+```
+ลบสิทธิ์การเข้าถึง OA ที่ระบุของ staff
+
+**Headers**
+```
+Authorization: Bearer <token>
+```
+
+**Query Parameters**
+- oa_id: ID ของ OA ที่ต้องการลบสิทธิ์ (required)
+
+**Response**
+```json
+{
+    "message": "staff permission deleted successfully"
+}
+```
+
+**Error Responses**
+```json
+{
+    "error": "invalid staff id"
+}
+```
+หรือ
+```json
+{
+    "error": "oa_id is required"
+}
+```
+หรือ
+```json
+{
+    "error": "invalid oa_id"
+}
+```
+หรือ
+```json
+{
+    "error": "staff not found"
+}
+```
+หรือ
+```json
+{
+    "error": "OA not found"
+}
+```
+หรือ
+```json
+{
+    "error": "staff does not have permission for this OA"
+}
+```
+หรือ
+```json
+{
+    "error": "cannot delete permissions for admin"
+}
+```
+
 ### LINE Official Account Management
 
 #### Create OA (Admin Only)
@@ -326,6 +427,99 @@ Authorization: Bearer <token>
 - ถ้าเป็น admin จะเห็น OA ทั้งหมด
 - ถ้าเป็น staff จะเห็นเฉพาะ OA ที่ได้รับสิทธิ์เข้าถึงเท่านั้น
 
+### LINE User Management
+
+#### List LINE Users
+```
+GET /line-users?oa_id={oa_id}
+```
+ดูรายการผู้ใช้ที่เคยคุยกับ OA ที่ระบุ
+
+**Headers**
+```
+Authorization: Bearer <token>
+```
+
+**Query Parameters**
+- oa_id: ID ของ OA ที่ต้องการดูรายการผู้ใช้ (required)
+
+**Response**
+```json
+{
+    "data": [
+        {
+            "id": "integer",
+            "user_id": "string",
+            "oa_id": "integer",
+            "created_at": "datetime",
+            "updated_at": "datetime"
+        }
+    ]
+}
+```
+
+**Error Responses**
+```json
+{
+    "error": "oa_id is required"
+}
+```
+หรือ
+```json
+{
+    "error": "invalid oa_id"
+}
+```
+หรือ
+```json
+{
+    "error": "insufficient permissions to view this OA"
+}
+```
+
+#### Get LINE User by ID
+```
+GET /line-users/:id
+```
+ดูข้อมูลผู้ใช้ LINE คนเดียว
+
+**Headers**
+```
+Authorization: Bearer <token>
+```
+
+**Response**
+```json
+{
+    "data": {
+        "id": "integer",
+        "user_id": "string",
+        "oa_id": "integer",
+        "created_at": "datetime",
+        "updated_at": "datetime"
+    }
+}
+```
+
+**Error Responses**
+```json
+{
+    "error": "invalid id"
+}
+```
+หรือ
+```json
+{
+    "error": "line user not found"
+}
+```
+หรือ
+```json
+{
+    "error": "insufficient permissions to view this OA"
+}
+```
+
 ## Error Responses
 
 ### 400 Bad Request
@@ -361,4 +555,47 @@ Authorization: Bearer <token>
 {
     "error": "internal server error"
 }
-``` 
+```
+
+### ดูสิทธิ์ของ Staff
+
+**Endpoint:** `GET /api/v1/staff/permissions/:staff_id`
+
+**Method:** GET
+
+**Headers:**
+- Authorization: Bearer {token} (ต้องเป็น admin)
+
+**Response:**
+```json
+{
+    "data": [
+        {
+            "oa_id": 1,
+            "oa_name": "OA Name",
+            "permission_level": "manage"
+        }
+    ]
+}
+```
+
+### ลบสิทธิ์ของ Staff
+
+**Endpoint:** `DELETE /api/v1/staff/permissions/:id`
+
+**Method:** DELETE
+
+**Headers:**
+- Authorization: Bearer {token} (ต้องเป็น admin)
+
+**Response:**
+```json
+{
+    "message": "staff permissions deleted successfully"
+}
+```
+
+**Error Responses:**
+- 400 Bad Request: `{"error": "invalid staff id"}` หรือ `{"error": "cannot delete permissions for admin"}`
+- 404 Not Found: `{"error": "staff not found"}`
+- 500 Internal Server Error: `{"error": "internal server error"}` 
