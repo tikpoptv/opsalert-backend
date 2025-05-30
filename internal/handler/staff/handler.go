@@ -192,3 +192,26 @@ func (h *Handler) GetStaffPermissions(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": permissions})
 }
+
+func (h *Handler) DeleteStaffPermissions(c *gin.Context) {
+	staffIDStr := c.Param("id")
+	staffID, err := strconv.Atoi(staffIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid staff id"})
+		return
+	}
+
+	if err := h.service.DeleteStaffPermissions(c.Request.Context(), staffID); err != nil {
+		switch err.Error() {
+		case "staff not found":
+			c.JSON(http.StatusNotFound, gin.H{"error": "staff not found"})
+		case "cannot delete permissions for admin":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot delete permissions for admin"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "staff permissions deleted successfully"})
+}

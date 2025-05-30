@@ -240,6 +240,43 @@ Authorization: Bearer <token>
 }
 ```
 
+#### Delete Staff Permissions (Admin Only)
+```
+DELETE /staff/permissions/:id
+```
+ลบสิทธิ์การเข้าถึง OA ทั้งหมดของ staff
+
+**Headers**
+```
+Authorization: Bearer <token>
+```
+
+**Response**
+```json
+{
+    "message": "staff permissions deleted successfully"
+}
+```
+
+**Error Responses**
+```json
+{
+    "error": "invalid staff id"
+}
+```
+หรือ
+```json
+{
+    "error": "cannot delete permissions for admin"
+}
+```
+หรือ
+```json
+{
+    "error": "staff not found"
+}
+```
+
 ### LINE Official Account Management
 
 #### Create OA (Admin Only)
@@ -398,4 +435,47 @@ Authorization: Bearer <token>
 {
     "error": "internal server error"
 }
-``` 
+```
+
+### ดูสิทธิ์ของ Staff
+
+**Endpoint:** `GET /api/v1/staff/permissions/:staff_id`
+
+**Method:** GET
+
+**Headers:**
+- Authorization: Bearer {token} (ต้องเป็น admin)
+
+**Response:**
+```json
+{
+    "data": [
+        {
+            "oa_id": 1,
+            "oa_name": "OA Name",
+            "permission_level": "manage"
+        }
+    ]
+}
+```
+
+### ลบสิทธิ์ของ Staff
+
+**Endpoint:** `DELETE /api/v1/staff/permissions/:id`
+
+**Method:** DELETE
+
+**Headers:**
+- Authorization: Bearer {token} (ต้องเป็น admin)
+
+**Response:**
+```json
+{
+    "message": "staff permissions deleted successfully"
+}
+```
+
+**Error Responses:**
+- 400 Bad Request: `{"error": "invalid staff id"}` หรือ `{"error": "cannot delete permissions for admin"}`
+- 404 Not Found: `{"error": "staff not found"}`
+- 500 Internal Server Error: `{"error": "internal server error"}` 

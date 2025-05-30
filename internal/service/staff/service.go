@@ -29,6 +29,7 @@ type Repository interface {
 	Update(id uint, staff *staffModel.Staff) error
 	SetPermissions(ctx context.Context, staffID int, permissions []staffModel.OAPermission) error
 	GetStaffPermissions(ctx context.Context, staffID int) ([]staffModel.StaffPermissionResponse, error)
+	DeleteStaffPermissions(ctx context.Context, staffID int) error
 }
 
 func NewService(repo Repository, jwtService *jwt.Service) *Service {
@@ -132,4 +133,22 @@ func (s *Service) GetStaffPermissions(ctx context.Context, staffID int) ([]staff
 	}
 
 	return s.repo.GetStaffPermissions(ctx, staffID)
+}
+
+func (s *Service) DeleteStaffPermissions(ctx context.Context, staffID int) error {
+	// ตรวจสอบว่ามี staff อยู่จริง
+	staff, err := s.repo.GetByID(uint(staffID))
+	if err != nil {
+		return err
+	}
+	if staff == nil {
+		return fmt.Errorf("staff not found")
+	}
+
+	// ตรวจสอบว่าไม่ใช่ admin (admin มีสิทธิ์ทั้งหมดอยู่แล้ว)
+	if staff.Role == "admin" {
+		return fmt.Errorf("cannot delete permissions for admin")
+	}
+
+	return s.repo.DeleteStaffPermissions(ctx, staffID)
 }

@@ -32,6 +32,7 @@ func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, lineOAHandle
 			staff.POST("/register", middleware.AdminOnly(), staffHandler.Register)
 			staff.POST("/permissions", middleware.AdminOnly(), staffHandler.SetPermissions)
 			staff.GET("/permissions/:staff_id", middleware.AdminOnly(), staffHandler.GetStaffPermissions)
+			staff.DELETE("/permissions/:id", middleware.AdminOnly(), staffHandler.DeleteStaffPermissions)
 		}
 
 		oa := v1.Group("/oa")

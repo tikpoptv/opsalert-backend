@@ -226,3 +226,23 @@ func (r *Repository) GetStaffPermissions(ctx context.Context, staffID int) ([]st
 
 	return permissions, nil
 }
+
+func (r *Repository) DeleteStaffPermissions(ctx context.Context, staffID int) error {
+	// ตรวจสอบว่า staff มีอยู่จริง
+	var exists bool
+	err := r.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM staff_accounts WHERE id = $1)", staffID).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check staff existence: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("staff not found")
+	}
+
+	// ลบสิทธิ์ทั้งหมดของ staff
+	_, err = r.db.ExecContext(ctx, "DELETE FROM staff_oa_permissions WHERE staff_id = $1", staffID)
+	if err != nil {
+		return fmt.Errorf("failed to delete staff permissions: %w", err)
+	}
+
+	return nil
+}
