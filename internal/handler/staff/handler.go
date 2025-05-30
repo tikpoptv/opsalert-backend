@@ -57,3 +57,26 @@ func (h *Handler) Login(c *gin.Context) {
 		},
 	})
 }
+
+func (h *Handler) GetProfile(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	staff, err := h.service.GetProfile(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":         staff.ID,
+		"username":   staff.Username,
+		"full_name":  staff.FullName,
+		"role":       staff.Role,
+		"is_active":  staff.IsActive,
+		"created_at": staff.CreatedAt,
+	})
+}
