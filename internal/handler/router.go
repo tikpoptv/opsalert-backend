@@ -5,13 +5,14 @@ import (
 	lineOAHandler "opsalert/internal/handler/line_oa"
 	lineUserHandler "opsalert/internal/handler/line_user"
 	staffHandler "opsalert/internal/handler/staff"
+	webhookHandler "opsalert/internal/handler/webhook"
 	jwtService "opsalert/internal/jwt"
 	"opsalert/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, lineOAHandler *lineOAHandler.Handler, lineUserHandler *lineUserHandler.Handler, apiTokenHandler *apiTokenHandler.Handler, webhookHandler interface{}, jwtService *jwtService.Service) {
+func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, lineOAHandler *lineOAHandler.Handler, lineUserHandler *lineUserHandler.Handler, apiTokenHandler *apiTokenHandler.Handler, webhookHandler *webhookHandler.Handler, jwtService *jwtService.Service) {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "ok",
@@ -60,6 +61,12 @@ func SetupRoutes(r *gin.Engine, staffHandler *staffHandler.Handler, lineOAHandle
 			apiTokens.POST("", apiTokenHandler.Create)
 			apiTokens.POST("/:id/reset", apiTokenHandler.Reset)
 			apiTokens.PUT("/:id/status", apiTokenHandler.UpdateStatus)
+		}
+
+		// Webhook routes
+		webhooks := v1.Group("/webhooks")
+		{
+			webhooks.POST("/line/:oa_id", webhookHandler.HandleLineWebhook)
 		}
 
 		v1.GET("/ping", func(c *gin.Context) {

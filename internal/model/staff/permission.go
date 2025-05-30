@@ -6,8 +6,10 @@ type PermissionRequest struct {
 }
 
 type OAPermission struct {
-	OAID            int    `json:"oa_id" binding:"required"`
-	PermissionLevel string `json:"permission_level" binding:"required,oneof=view manage"`
+	ID              uint   `json:"id" db:"id"`
+	StaffID         uint   `json:"staff_id" db:"staff_id" binding:"required"`
+	OAID            uint   `json:"oa_id" db:"oa_id" binding:"required"`
+	PermissionLevel string `json:"permission_level" db:"permission_level" binding:"required,oneof=view manage"`
 }
 
 type StaffPermissionResponse struct {

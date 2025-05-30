@@ -9,15 +9,25 @@ import (
 	"github.com/lib/pq"
 )
 
-type Repository struct {
+type Repository interface {
+	Create(ctx context.Context, oa *lineOAModel.LineOA) error
+	GetByID(ctx context.Context, id int) (*lineOAModel.LineOA, error)
+	Update(ctx context.Context, oa *lineOAModel.LineOA) error
+	Delete(ctx context.Context, id int) error
+	GetAll(ctx context.Context) ([]*lineOAModel.LineOA, error)
+	GetByStaffID(ctx context.Context, staffID int) ([]*lineOAModel.LineOA, error)
+	CheckManagePermission(ctx context.Context, staffID int, oaID int) (bool, error)
+}
+
+type repository struct {
 	db *sql.DB
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *sql.DB) Repository {
+	return &repository{db: db}
 }
 
-func (r *Repository) Create(ctx context.Context, oa *lineOAModel.LineOA) error {
+func (r *repository) Create(ctx context.Context, oa *lineOAModel.LineOA) error {
 	query := `
 		INSERT INTO line_official_accounts (name, channel_id, channel_secret, channel_access_token, webhook_url)
 		VALUES ($1, $2, $3, $4, $5)
@@ -34,13 +44,13 @@ func (r *Repository) Create(ctx context.Context, oa *lineOAModel.LineOA) error {
 	).Scan(&oa.ID, &oa.CreatedAt)
 }
 
-func (r *Repository) GetByID(ctx context.Context, id int) (*lineOAModel.LineOA, error) {
+func (r *repository) GetByID(ctx context.Context, id int) (*lineOAModel.LineOA, error) {
 	query := `
 		SELECT id, name, channel_id, channel_secret, channel_access_token, webhook_url, created_at
 		FROM line_official_accounts
 		WHERE id = $1`
 
-	oa := &lineOAModel.LineOA{}
+	var oa lineOAModel.LineOA
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&oa.ID,
 		&oa.Name,
@@ -54,12 +64,13 @@ func (r *Repository) GetByID(ctx context.Context, id int) (*lineOAModel.LineOA, 
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get OA: %w", err)
 	}
-	return oa, nil
+
+	return &oa, nil
 }
 
-func (r *Repository) Update(ctx context.Context, oa *lineOAModel.LineOA) error {
+func (r *repository) Update(ctx context.Context, oa *lineOAModel.LineOA) error {
 	query := `
 		UPDATE line_official_accounts
 		SET name = $1,
@@ -82,13 +93,13 @@ func (r *Repository) Update(ctx context.Context, oa *lineOAModel.LineOA) error {
 	return err
 }
 
-func (r *Repository) Delete(ctx context.Context, id int) error {
+func (r *repository) Delete(ctx context.Context, id int) error {
 	query := `DELETE FROM line_official_accounts WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
 }
 
-func (r *Repository) GetAll(ctx context.Context) ([]*lineOAModel.LineOA, error) {
+func (r *repository) GetAll(ctx context.Context) ([]*lineOAModel.LineOA, error) {
 	query := `
 		SELECT id, name, channel_id, channel_secret, channel_access_token, webhook_url, created_at
 		FROM line_official_accounts
@@ -125,7 +136,7 @@ func (r *Repository) GetAll(ctx context.Context) ([]*lineOAModel.LineOA, error) 
 	return oas, nil
 }
 
-func (r *Repository) GetByStaffID(ctx context.Context, staffID int) ([]*lineOAModel.LineOA, error) {
+func (r *repository) GetByStaffID(ctx context.Context, staffID int) ([]*lineOAModel.LineOA, error) {
 	// 1. เช็คสิทธิ์ก่อน
 	var oaIDs []int
 	rows, err := r.db.QueryContext(ctx, "SELECT oa_id FROM staff_oa_permissions WHERE staff_id = $1", staffID)
@@ -189,7 +200,7 @@ func (r *Repository) GetByStaffID(ctx context.Context, staffID int) ([]*lineOAMo
 	return oas, nil
 }
 
-func (r *Repository) CheckManagePermission(ctx context.Context, staffID int, oaID int) (bool, error) {
+func (r *repository) CheckManagePermission(ctx context.Context, staffID int, oaID int) (bool, error) {
 	var hasPermission bool
 	query := `
 		SELECT EXISTS(

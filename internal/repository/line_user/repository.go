@@ -22,10 +22,10 @@ func NewRepository(db *sql.DB) Repository {
 
 func (r *repository) GetByOaID(ctx context.Context, oaID int) ([]lineUserModel.LineUser, error) {
 	query := `
-		SELECT id, user_id, oa_id, created_at, updated_at
+		SELECT id, line_user_id, display_name, oa_id, created_at
 		FROM line_users
 		WHERE oa_id = $1
-		ORDER BY updated_at DESC`
+		ORDER BY created_at DESC`
 
 	rows, err := r.db.QueryContext(ctx, query, oaID)
 	if err != nil {
@@ -36,7 +36,7 @@ func (r *repository) GetByOaID(ctx context.Context, oaID int) ([]lineUserModel.L
 	var users []lineUserModel.LineUser
 	for rows.Next() {
 		var user lineUserModel.LineUser
-		if err := rows.Scan(&user.ID, &user.UserID, &user.OaID, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		if err := rows.Scan(&user.ID, &user.LineUserID, &user.DisplayName, &user.OaID, &user.CreatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan line user: %w", err)
 		}
 		users = append(users, user)
@@ -51,17 +51,17 @@ func (r *repository) GetByOaID(ctx context.Context, oaID int) ([]lineUserModel.L
 
 func (r *repository) GetByID(ctx context.Context, id uint) (*lineUserModel.LineUser, error) {
 	query := `
-		SELECT id, user_id, oa_id, created_at, updated_at
+		SELECT id, line_user_id, display_name, oa_id, created_at
 		FROM line_users
 		WHERE id = $1`
 
 	var user lineUserModel.LineUser
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
-		&user.UserID,
+		&user.LineUserID,
+		&user.DisplayName,
 		&user.OaID,
 		&user.CreatedAt,
-		&user.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

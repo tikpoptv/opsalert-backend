@@ -8,11 +8,11 @@ import (
 )
 
 type Service struct {
-	repo   *line_oa.Repository
+	repo   line_oa.Repository
 	domain string
 }
 
-func NewService(repo *line_oa.Repository, domain string) *Service {
+func NewService(repo line_oa.Repository, domain string) *Service {
 	return &Service{
 		repo:   repo,
 		domain: domain,
